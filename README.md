@@ -8,7 +8,7 @@ A simple first in/first out queue for small amounts of data surviving deep sleep
 Uses uctypes to specify the payload transferred from/to the queue.
 
 USAGE:
-```
+```python
 import uctypes
 from rtc_fifo import RTCFIFO
 import machine
