@@ -1,8 +1,10 @@
 # test_rtc_mem.py
 
-import uctypes
-from rtc_fifo import RTCFIFO
 import machine
+import uctypes
+
+from mem_fifo import MemFifo
+from rtc_mem import rtc_pool
 
 struct_def = {
     "time":             0 | uctypes.UINT32,
@@ -23,7 +25,7 @@ def create_struct():
 
 
 def overrun():
-    q = RTCFIFO(struct_def, entries=2)
+    q = MemFifo(rtc_pool, struct_def, entries=2)
     for sample in samples:
         data = create_struct()
         data.time = sample[0]
@@ -33,7 +35,7 @@ def overrun():
         q.enqueue(data)
 
 def sleeptest():
-    q = RTCFIFO(struct_def)
+    q = MemFifo(rtc_pool, struct_def)
     for sample in samples:
         data = create_struct()
         data.time = sample[0]
@@ -44,12 +46,12 @@ def sleeptest():
         machine.deepsleep(500)
 
 def read_one():
-    q = RTCFIFO(struct_def)
+    q = MemFifo(rtc_pool, struct_def)
     data = q.dequeue()
     return data
 
 def read():
-    q = RTCFIFO(struct_def)
+    q = MemFifo(rtc_pool, struct_def)
     data = q.dequeue()
     while data is not None:
         print("data from queue: {} {} {}".format(data.time, data.temperature, data.pressure))

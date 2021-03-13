@@ -1,18 +1,10 @@
-# mem_fifo.py
-#
-# Create a queue/storage for small amounts of data in the RTC.
-#
-#
-
-
+"""
+mem_fifo.py
+============================================================================
+Create a queue/storage for small amounts of data inside a given memory pool.
+"""
 import uctypes
 import sys
-
-RTC_MEM_SIZE = 2048 # default
-
-# some space for apps using RTC().memory(), e.g. RTC().memory('blah')
-RTC_MEM_RESERVED = 64
-
 
 FIFO_HEADER = {
     "magic":        0 | uctypes.UINT32,
@@ -29,7 +21,24 @@ class QueueOverrunException(BaseException):
 
 
 class MemFifo():
+    """ Class managing a simple FIFO queue"""
     def __init__(self, pool, struct_def, entries = None):
+        """
+        Attach to an existing queue or create a new one at the location defined by
+        the pool parameter.
+
+        Parameters
+        ----------
+        pool
+            A memory pool
+        struct_def
+            Definition of an uctype structure.
+            This describes the messages we will manage in the queue.
+        entries
+            An integer limiting the number of messages in the queue.
+            Default: use entire memory allocated in pool for messages.
+
+        """
         hdr_size = uctypes.sizeof(FIFO_HEADER)
         elem_size = uctypes.sizeof(struct_def)
         if entries is None:
@@ -55,6 +64,20 @@ class MemFifo():
         return index
 
     def enqueue(self, data):
+        """
+        Adds a data record to the queue.
+
+        Raises a QueueOverrunException when there are no more slots available in
+        in the queue.
+
+        Parameters
+        ----------
+        data
+            An uctype stucture holding the message to add to the queue.
+            The structure SHOULD conform to the definition given when creating
+            the MemFifo object or should at least have the same size.
+            Longer structures get silently truncated when addded to the queue.
+        """
         hdr = self._hdr
         if hdr.full:
             raise QueueOverrunException()
@@ -66,6 +89,13 @@ class MemFifo():
         hdr.full = hdr.wr_i == hdr.rd_i
 
     def dequeue(self):
+        """
+        Removes the first message from the queue and returns either the data as
+        uctype struct or None when the queue is empty.
+
+        The returned value references memory directly in the queue slot, so it might
+        change when enqueue() is called!
+        """
         hdr = self._hdr
         if (not hdr.full) and (hdr.rd_i == hdr.wr_i):
             return None
