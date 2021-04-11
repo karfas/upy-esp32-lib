@@ -5,10 +5,12 @@
 #
 
 from sys import platform
-import mem_pool
+
+from mem_map import MemMap
 
 if platform == "linux":
     # testing only.
+    import uctypes
     mem = bytearray(2048)
     ADDR = uctypes.addressof(mem)
 if platform == "esp32":
@@ -23,5 +25,10 @@ RTC_MEM_SIZE = 2048 # default
 # some space for apps using RTC().memory(), e.g. RTC().memory('blah')
 RTC_MEM_RESERVED = 64
 
-rtc_pool = MemPool(ADDR + RTC_MEM_RESERVED, RTC_MEM_SIZE - RTC_MEM_RESERVED)
+
+class RTCMemory(MemMap):
+    def __init__(self, layout):
+        super().__init__(ADDR + RTC_MEM_RESERVED,
+                         RTC_MEM_SIZE - RTC_MEM_RESERVED,
+                         layout)
 

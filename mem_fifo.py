@@ -22,7 +22,7 @@ class QueueOverrunException(BaseException):
 
 class MemFifo():
     """ Class managing a simple FIFO queue"""
-    def __init__(self, pool, struct_def, entries = None):
+    def __init__(self, addr, size, struct):
         """
         Attach to an existing queue or create a new one at the location defined by
         the pool parameter.
@@ -40,12 +40,10 @@ class MemFifo():
 
         """
         hdr_size = uctypes.sizeof(FIFO_HEADER)
-        elem_size = uctypes.sizeof(struct_def)
-        if entries is None:
-            entries = (pool.space() - hdr_size) // elem_size
-        addr = pool.alloc(entries * elem_size + hdr_size)
+        elem_size = uctypes.sizeof(struct)
         hdr = uctypes.struct(addr, FIFO_HEADER)
-        if hdr.magic != FIFO_MAGIC:
+        entries = size // elem_size
+        if hdr.magic != FIFO_MAGIC or hdr.elem_size != elem_size or hdr.elements != entries:
             print("MemFifo: init queue")
             hdr.rd_i = 0
             hdr.wr_i = 0
@@ -55,7 +53,7 @@ class MemFifo():
             hdr.full = False
         self._hdr = hdr
         self._data_addr = addr + uctypes.sizeof(self._hdr)
-        self._struct = struct_def
+        self._struct = struct
 
     def _incr_wrap(self, index):
         index = index + 1
