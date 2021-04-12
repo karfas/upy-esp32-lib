@@ -17,7 +17,9 @@ FIFO_HEADER = {
     }
 FIFO_MAGIC = 0x3ffd3e80
 
-class QueueOverrunException(BaseException):
+class QueueOverrun(BaseException):
+    pass
+class QueueEmpty(BaseException):
     pass
 
 
@@ -53,7 +55,7 @@ class MemFifo():
             hdr.magic = FIFO_MAGIC
             hdr.full = False
         self._hdr = hdr
-        self._data_addr = addr + uctypes.sizeof(self._hdr)
+        self._data_addr = mem_desc.addr + uctypes.sizeof(self._hdr)
         self._struct = struct
 
     def _incr_wrap(self, index):
@@ -79,7 +81,7 @@ class MemFifo():
         """
         hdr = self._hdr
         if hdr.full:
-            raise QueueOverrunException()
+            raise QueueOverrun()
         addr = self._data_addr + hdr.elem_size * hdr.wr_i
         src = uctypes.bytearray_at(uctypes.addressof(data), hdr.elem_size)
         dst = uctypes.bytearray_at(addr, hdr.elem_size)
@@ -103,12 +105,17 @@ class MemFifo():
         hdr.full = False
         return uctypes.struct(addr, self._struct)
 
-    def peek(self):
-        hdr = self._hdr
+    def peek_nowait(self):
         if self.empty():
-            return None
+            raise QueueEmpty()
+        hdr = self._hdr
         addr = self._data_addr + hdr.elem_size * hdr.rd_i
         return uctypes.struct(addr, self._struct)
+
+    async def peek(self):
+        while self.empty():
+            await uasyncio.sleep(0)
+        return self.peek_nowait()
 
     # uasyncio-queue like interface
     async def put(self, data):

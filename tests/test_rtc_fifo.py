@@ -5,10 +5,9 @@ import machine
 import uctypes
 
 sys.path.append(".")    # include current directory
-# sys.path.append("..")   # assume we are in tests/
+sys.path.append("..")   # assume we are in tests/
 
-# from mem_map import MemMap
-from rtc_mem import RtcMemory
+from rtc_mem import RTCMemory
 from mem_fifo import MemFifo
 
 struct_def = {
@@ -24,7 +23,7 @@ samples = (
     )
 
 rtc_mem = RTCMemory([
-    'fifo',     1024,
+    'fifo',     50,             # space for ~3 entries + fifo header
     'something_else', 256
     ])
 q = MemFifo(rtc_mem.fifo, struct_def)
@@ -42,7 +41,7 @@ def overrun():
         data.temperature = sample[1]
         data.pressure = sample[2]
         print("enqueue t={}".format(data.time))
-        q.enqueue(data)
+        q.put_nowait(data)
 
 def sleeptest():
     for sample in samples:
@@ -51,15 +50,15 @@ def sleeptest():
         data.temperature = sample[1]
         data.pressure = sample[2]
         print("enqueue t={}".format(data.time))
-        q.enqueue(data)
+        q.put_nowait(data)
         machine.deepsleep(500)
 
 def read_one():
-    data = q.dequeue()
+    data = q.get_nowait()
     return data
 
 def read():
     data = q.dequeue()
     while data is not None:
         print("data from queue: {} {} {}".format(data.time, data.temperature, data.pressure))
-        data = q.dequeue()
+        data = q.get_nowait()

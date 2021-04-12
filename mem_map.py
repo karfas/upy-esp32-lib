@@ -38,11 +38,11 @@ class MemMap():
             self._base = base
             self._name_map = {}
             addr = self._base
-            print("len name_list", len(name_list))
+            # print("len name_list", len(name_list))
             for i in range(0, len(name_list), 2):
                 name = name_list[i]
                 size = name_list[i+1]
-                print(i, name, size)
+                # print(i, name, size)
                 if not isinstance(size, int):
                     raise ValueError # ("expected int address, not " + str(type(size)))
                 self._name_map[name] = MemMap.MemDesc(addr, size, urandom.getrandbits(32))
@@ -53,7 +53,6 @@ class MemMap():
             pass
 
     def __getattr__(self, attr):
-        print("__getattr__ ", attr)
         entry = self._name_map.get(attr)
         if entry is None:
             raise AttributeError("missing attribute: " + attr)
