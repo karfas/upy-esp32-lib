@@ -48,7 +48,7 @@ class MemMap():
                 self._name_map[name] = MemMap.MemDesc(addr, size, urandom.getrandbits(32))
                 addr += size
         finally:
-            if not rand_stat is None:
+            if rand_stat:
                 urandom.setstate(rand_stat)
             pass
 

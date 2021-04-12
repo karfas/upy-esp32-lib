@@ -1,10 +1,15 @@
 # test_rtc_mem.py
 
+import sys
 import machine
 import uctypes
 
+sys.path.append(".")    # include current directory
+# sys.path.append("..")   # assume we are in tests/
+
+# from mem_map import MemMap
+from rtc_mem import RtcMemory
 from mem_fifo import MemFifo
-from rtc_mem import rtc_pool
 
 struct_def = {
     "time":             0 | uctypes.UINT32,
@@ -18,6 +23,12 @@ samples = (
     [ 500,  5, 10000], # Storm!
     )
 
+rtc_mem = RTCMemory([
+    'fifo',     1024,
+    'something_else', 256
+    ])
+q = MemFifo(rtc_mem.fifo, struct_def)
+
 def create_struct():
     arr = bytearray(uctypes.sizeof(struct_def))
     data = uctypes.struct(uctypes.addressof(arr), struct_def)
@@ -25,7 +36,6 @@ def create_struct():
 
 
 def overrun():
-    q = MemFifo(rtc_pool, struct_def, entries=2)
     for sample in samples:
         data = create_struct()
         data.time = sample[0]
@@ -35,7 +45,6 @@ def overrun():
         q.enqueue(data)
 
 def sleeptest():
-    q = MemFifo(rtc_pool, struct_def)
     for sample in samples:
         data = create_struct()
         data.time = sample[0]
@@ -46,14 +55,11 @@ def sleeptest():
         machine.deepsleep(500)
 
 def read_one():
-    q = MemFifo(rtc_pool, struct_def)
     data = q.dequeue()
     return data
 
 def read():
-    q = MemFifo(rtc_pool, struct_def)
     data = q.dequeue()
     while data is not None:
         print("data from queue: {} {} {}".format(data.time, data.temperature, data.pressure))
         data = q.dequeue()
-
