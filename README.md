@@ -9,10 +9,11 @@ Uses uctypes to specify the payload transferred from/to the queue.
 
 USAGE:
 ```python
-import uctypes
-from rtc_mem import rtc_pool
-from mem_fifo import MemFifo
 import machine
+import uctypes
+
+from rtc_mem import RTCMemory
+from mem_fifo import MemFifo
 
 struct_def = {
     "time":             0 | uctypes.UINT32,
@@ -26,89 +27,73 @@ samples = (
     [ 500,  5, 10000], # Storm!
     )
 
+# create memory map in RTC slow memory
+rtc_mem = RTCMemory([
+    'fifo',     50,             # space for ~3 entries + fifo header
+    'something_else', 256
+    ])
+
+# create FIFO in the "fifo" area defined above
+q = MemFifo(rtc_mem.fifo, struct_def)
+
 def create_struct():
     arr = bytearray(uctypes.sizeof(struct_def))
     data = uctypes.struct(uctypes.addressof(arr), struct_def)
     return data
 
-def sleeptest():
-    q = MemFifo(rtc_pool, struct_def)
+def overrun():
     for sample in samples:
         data = create_struct()
         data.time = sample[0]
         data.temperature = sample[1]
         data.pressure = sample[2]
         print("enqueue t={}".format(data.time))
-        q.enqueue(data)
+        q.put_nowait(data)
+
+def sleeptest():
+    for sample in samples:
+        data = create_struct()
+        data.time = sample[0]
+        data.temperature = sample[1]
+        data.pressure = sample[2]
+        print("enqueue t={}".format(data.time))
+        q.put_nowait(data)
         machine.deepsleep(500)
 
 def read_one():
-    q = MemFifo(rtc_pool, struct_def)
-    data = q.dequeue()
+    data = q.get_nowait()
     return data
 
 def read():
-    q = MemFifo(rtc_pool, struct_def)
     data = q.dequeue()
     while data is not None:
-        print("data from queue: {} {} {}".format(data.time, data.temperature, data.pressure) )
-        data = q.dequeue()
-
+        print("data from queue: {} {} {}".format(data.time, data.temperature, data.pressure))
+        data = q.get_nowait()
 ```
 
-## mem_fifo.py
+## mem_map.py
+
+Give structure to an area in memory
 
 Usage:
 ```python
-
 import uctypes
-from mem_pool import MemPool
-from mem_fifo import MemFifo
+from mem_map import MemMap
 
-QUEUE_ENTRY = {
-    "time":             0 | uctypes.UINT32,
-    "temperature":      4 | uctypes.INT16,       # 1/10 Celsius
-    }
+a = bytearray(2048)     # some memory to manage
+addr = uctypes.addressof(a)
+map = MemMap(addr, [
+    'fifo',     50,             # space for ~3 entries + fifo header
+    'something_else', 256
+    ])
 
-QUEUE_SLOTS = 20
-
-SIZE=2048
-my_memory = bytearray(SIZE)
-my_address = uctypes.addressof(my_memory)
-pool = MemPool(my_address, SIZE)
-queue = MemFifo(pool, QUEUE_ENTRY, QUEUE_SLOTS)
-
-buf = bytearray(uctypes.sizeof(QUEUE_ENTRY))
-entry = uctypes.struct(uctypes.addressof(buf))
-entry.time = 12345
-entry.temperature = 221
-
-queue.enqueue(entry)    # put something in the queue
-
-e = queue.dequeue() # get an entry from the queue
-print("time {}, temp {}".format(e.time, e.temperature / 10))
-
+fifo_addr = map.fifo.addr
+something_addr = map.something_else.addr
 ```
 
-## mem_pool.py
+## rtc_mem.py
 
-Small and very dumb memory pool (misses even a free() call!)
+contains class RTCMemory, which directly inherits from MemMap above.
 
 Usage:
-```python
-
-import uctypes
-from mem_pool import MemPool
-
-SIZE=2048
-my_memory = bytearray(SIZE)
-my_address = uctypes.addressof(my_memory)
-pool = MemPool(my_address, SIZE)
-
-address1 = pool.alloc(4)
-address2 = pool.alloc(100)
-
-four = uctypes.bytearray_at(address1, 4)
-hundred = uctypes.bytearray_at(address1, 100)
-
-```
+    see example in "FIFO queue in RTC memory"
